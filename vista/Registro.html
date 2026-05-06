@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyura Motors - Registro</title>
+    <link rel="stylesheet" href="EstiloPrincipal.css">
+    <link rel="stylesheet" href="auth.css">
+    <link rel="stylesheet" href="header-unique.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;800&family=Poppins:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        main { margin-top: 0; }
+        #submitBtn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <section class="auth-page">
+            <div class="auth-card" style="max-width: 560px; grid-template-columns: 1fr;">
+                <div class="auth-content" style="background: transparent;">
+                    <div class="auth-row" style="justify-content: flex-start; margin-bottom: 0.5rem;">
+                        <a class="auth-link" href="home.html" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                            <span aria-hidden="true">←</span>
+                            <span>Volver</span>
+                        </a>
+                    </div>
+
+                    <p class="auth-kicker">Nyura Motors</p>
+                    <h1 class="auth-title" style="font-size: 1.85rem;">Crear cuenta</h1>
+
+                    <form class="auth-form" action="#" method="post" novalidate id="registroForm">
+                        <label>
+                            <span>Nombre</span>
+                            <input class="auth-input" type="text" name="nombre" autocomplete="given-name" placeholder="Tu nombre" required>
+                        </label>
+
+                        <label>
+                            <span>Email</span>
+                            <input class="auth-input" type="email" name="email" autocomplete="email" placeholder="nombre@correo.com" required>
+                        </label>
+
+                        <label>
+                            <span>Teléfono</span>
+                            <input class="auth-input" type="tel" name="telefono" autocomplete="tel" placeholder="+34 600 000 000">
+                        </label>
+
+                        <label>
+                            <span>Contraseña</span>
+                            <input class="auth-input" type="password" name="contrasena" autocomplete="new-password" placeholder="Mínimo 8 caracteres" required>
+                        </label>
+
+                        <label>
+                            <span>Repetir contraseña</span>
+                            <input class="auth-input" type="password" name="contrasena_repeat" autocomplete="new-password" placeholder="Repite tu contraseña" required>
+                        </label>
+
+                        <label class="auth-check" style="align-items: flex-start;">
+                            <p> 
+                                <input type="checkbox" name="terms" id="termsCheckbox" required />
+                                <span>He leído y acepto la <a href="#" onclick="openPrivacyModal()" style="color: var(--primary-color); text-decoration: underline;">política de privacidad</a> y las <a href="#" onclick="openTermsModal()" style="color: var(--primary-color); text-decoration: underline;">condiciones de uso</a></span>
+                            </p>
+                            
+                        </label>
+
+                        <button class="auth-submit" type="submit" id="submitBtn" disabled>Crear cuenta</button>
+
+                        <p class="auth-alt">¿Ya tienes cuenta? <a class="auth-link" href="InicioSesion.html">Inicia sesión</a></p>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script type="module">
+        import { signUp } from '../controlador/BBDD/SupabaseCliente.js';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const termsCheckbox = document.getElementById('termsCheckbox');
+            const submitBtn = document.getElementById('submitBtn');
+            const form = document.getElementById('registroForm');
+            const passwordInput = document.querySelector('input[name="contrasena"]');
+            const passwordRepeatInput = document.querySelector('input[name="contrasena_repeat"]');
+
+            // Control del checkbox de términos
+            termsCheckbox.addEventListener('change', function() {
+                submitBtn.disabled = !this.checked;
+            });
+
+            // Validación de contraseñas en tiempo real
+            function validatePasswords() {
+                const password = passwordInput.value;
+                const repeatPassword = passwordRepeatInput.value;
+                
+                // Validar fortaleza de contraseña
+                const hasMinLength = password.length >= 8;
+                const hasUpperCase = /[A-Z]/.test(password);
+                const hasLowerCase = /[a-z]/.test(password);
+                const hasNumbers = /\d/.test(password);
+                
+                let errorMessage = '';
+                if (!hasMinLength) errorMessage = 'La contraseña debe tener al menos 8 caracteres';
+                else if (!hasUpperCase) errorMessage = 'La contraseña debe tener al menos una mayúscula';
+                else if (!hasLowerCase) errorMessage = 'La contraseña debe tener al menos una minúscula';
+                else if (!hasNumbers) errorMessage = 'La contraseña debe tener al menos un número';
+                
+                // Validar que las contraseñas coincidan
+                if (repeatPassword && password !== repeatPassword) {
+                    errorMessage = errorMessage ? `${errorMessage} y las contraseñas no coinciden` : 'Las contraseñas no coinciden';
+                }
+                
+                return { isValid: !errorMessage, message: errorMessage };
+            }
+
+            // Mostrar errores de contraseña
+            function showPasswordError(message) {
+                // Eliminar mensaje de error anterior si existe
+                const existingError = passwordRepeatInput.parentNode.querySelector('.password-error');
+                if (existingError) existingError.remove();
+                
+                if (message) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'password-error';
+                    errorDiv.style.cssText = 'color: #e74c3c; font-size: 0.85rem; margin-top: 0.25rem;';
+                    errorDiv.textContent = message;
+                    passwordRepeatInput.parentNode.appendChild(errorDiv);
+                }
+            }
+
+            // Validar mientras escribe
+            passwordInput.addEventListener('input', function() {
+                const validation = validatePasswords();
+                showPasswordError(validation.message);
+            });
+
+            passwordRepeatInput.addEventListener('input', function() {
+                const validation = validatePasswords();
+                showPasswordError(validation.message);
+            });
+
+            // Validación completa del formulario
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Limpiar errores anteriores
+                document.querySelectorAll('.field-error').forEach(el => el.remove());
+                
+                let hasErrors = false;
+                
+                // Validar campos obligatorios
+                const requiredFields = ['nombre', 'email'];
+                requiredFields.forEach(fieldName => {
+                    const field = form.querySelector(`[name="${fieldName}"]`);
+                    if (!field.value.trim()) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'field-error';
+                        errorDiv.style.cssText = 'color: #e74c3c; font-size: 0.85rem; margin-top: 0.25rem;';
+                        errorDiv.textContent = 'Este campo es obligatorio';
+                        field.parentNode.appendChild(errorDiv);
+                        hasErrors = true;
+                    }
+                });
+                
+                // Validar email
+                const emailInput = form.querySelector('[name="email"]');
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (emailInput.value && !emailRegex.test(emailInput.value)) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'field-error';
+                    errorDiv.style.cssText = 'color: #e74c3c; font-size: 0.85rem; margin-top: 0.25rem;';
+                    errorDiv.textContent = 'El email no es válido';
+                    emailInput.parentNode.appendChild(errorDiv);
+                    hasErrors = true;
+                }
+                
+                // Validar teléfono si se proporciona
+                const phoneInput = form.querySelector('[name="telefono"]');
+                if (phoneInput.value) {
+                    const phoneRegex = /^\+?\d{9,15}$/;
+                    if (!phoneRegex.test(phoneInput.value.replace(/\s/g, ''))) {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'field-error';
+                        errorDiv.style.cssText = 'color: #e74c3c; font-size: 0.85rem; margin-top: 0.25rem;';
+                        errorDiv.textContent = 'El teléfono debe tener entre 9 y 15 dígitos';
+                        phoneInput.parentNode.appendChild(errorDiv);
+                        hasErrors = true;
+                    }
+                }
+                
+                // Validar contraseña
+                const passwordValidation = validatePasswords();
+                if (!passwordValidation.isValid) {
+                    showPasswordError(passwordValidation.message);
+                    hasErrors = true;
+                }
+                
+                // Validar términos
+                if (!termsCheckbox.checked) {
+                    alert('Debes aceptar los términos y condiciones para registrarte');
+                    hasErrors = true;
+                }
+                
+                // Si no hay errores, enviar formulario
+                if (!hasErrors) {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Registrando...';
+                    
+                    const userData = {
+                        nombre: form.querySelector('[name="nombre"]').value,
+                        email: emailInput.value,
+                        telefono: phoneInput.value,
+                        contrasena: passwordInput.value
+                    };
+                    
+                    try {
+                        const result = await signUp(userData.email, userData.contrasena, userData);
+                        
+                        if (result.success) {
+                            alert(result.message || 'Registro exitoso');
+                            // Redirigir a página de confirmación o login
+                            window.location.href = 'InicioSesion.html';
+                        } else {
+                            // Mostrar error específico
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'field-error';
+                            errorDiv.style.cssText = 'color: #e74c3c; font-size: 0.85rem; margin-top: 0.25rem;';
+                            errorDiv.textContent = result.error;
+                            emailInput.parentNode.appendChild(errorDiv);
+                        }
+                    } catch (error) {
+                        console.error('Error en registro:', error);
+                        alert('Error inesperado durante el registro');
+                    } finally {
+                        submitBtn.disabled = !termsCheckbox.checked;
+                        submitBtn.textContent = 'Crear cuenta';
+                    }
+                }
+            });
+        });
+    </script>
+</main>
+
+    <!-- Popup Modal -->
+    <div id="legalModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle" class="modal-title">Título</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modalContent" class="modal-text">
+                    <!-- Content will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-accept" onclick="acceptTerms()">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { signUp } from '../controlador/BBDD/SupabaseCliente.js';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const termsCheckbox = document.getElementById('termsCheckbox');
+            const submitBtn = document.getElementById('submitBtn');
+            const form = document.getElementById('registroForm');
+            const passwordInput = document.querySelector('input[name="contrasena"]');
+            const passwordRepeatInput = document.querySelector('input[name="contrasena_repeat"]');
+
+            // Control del checkbox de términos
+            termsCheckbox.addEventListener('change', function() {
+                submitBtn.disabled = !this.checked;
+            });
+
+            // Validación de contraseñas en tiempo real
+            function validatePasswords() {
+                const password = passwordInput.value;
+                const repeatPassword = passwordRepeatInput.value;
+                
+                // Validar fortaleza de contraseña
+                const hasMinLength = password.length >= 8;
+                const hasUpperCase = /[A-Z]/.test(password);
+                const hasLowerCase = /[a-z]/.test(password);
+                const hasNumbers = /\d/.test(password);
+                const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+                
+                // Crear indicadores de fortaleza
+                const indicators = {
+                    minLength: hasMinLength,
+                    upperCase: hasUpperCase,
+                    lowerCase: hasLowerCase,
+                    numbers: hasNumbers,
+                    specialChars: hasSpecialChars
+                };
+                
+                // Actualizar UI de indicadores
+                updatePasswordIndicators(indicators);
+                
+                // Validar que las contraseñas coincidan
+                if (repeatPassword.length > 0) {
+                    if (password !== repeatPassword) {
+                        passwordRepeatInput.setCustomValidity('Las contraseñas no coinciden');
+                    } else {
+                        passwordRepeatInput.setCustomValidity('');
+                    }
+                }
+                
+                return Object.values(indicators).every(Boolean);
+            }
+
+            function updatePasswordIndicators(indicators) {
+                // Eliminar indicadores anteriores
+                const existingIndicators = document.querySelector('.password-indicators');
+                if (existingIndicators) {
+                    existingIndicators.remove();
+                }
+                
+                // Crear contenedor de indicadores
+                const indicatorsContainer = document.createElement('div');
+                indicatorsContainer.className = 'password-indicators';
+                indicatorsContainer.style.cssText = `
+                    margin-top: 0.5rem;
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.25rem;
+                `;
+                
+                // Añadir indicadores
+                const indicatorItems = [
+                    { key: 'minLength', text: 'Mínimo 8 caracteres' },
+                    { key: 'upperCase', text: 'Una letra mayúscula' },
+                    { key: 'lowerCase', text: 'Una letra minúscula' },
+                    { key: 'numbers', text: 'Un número' },
+                    { key: 'specialChars', text: 'Un carácter especial' }
+                ];
+                
+                indicatorItems.forEach(item => {
+                    const indicator = document.createElement('div');
+                    indicator.style.cssText = `
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                    `;
+                    
+                    const icon = document.createElement('span');
+                    icon.textContent = indicators[item.key] ? 'þ' : '×';
+                    icon.style.cssText = `
+                        color: ${indicators[item.key] ? 'var(--primary-color)' : '#e74c3c'};
+                        font-weight: bold;
+                    `;
+                    
+                    const text = document.createElement('span');
+                    text.textContent = item.text;
+                    text.style.cssText = `
+                        color: ${indicators[item.key] ? 'var(--text-secondary)' : '#e74c3c'};
+                    `;
+                    
+                    indicator.appendChild(icon);
+                    indicator.appendChild(text);
+                    indicatorsContainer.appendChild(indicator);
+                });
+                
+                // Insertar después del input de contraseña
+                passwordInput.parentNode.appendChild(indicatorsContainer);
+            }
+
+            // Event listeners para validación en tiempo real
+            passwordInput.addEventListener('input', validatePasswords);
+            passwordRepeatInput.addEventListener('input', validatePasswords);
+
+            // Envío del formulario
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validar fortaleza de contraseña
+                if (!validatePasswords()) {
+                    alert('La contraseña debe cumplir con todos los requisitos de seguridad.');
+                    return;
+                }
+                
+                // Validar que las contraseñas coincidan
+                if (passwordInput.value !== passwordRepeatInput.value) {
+                    alert('Las contraseñas no coinciden.');
+                    return;
+                }
+                
+                // Recoger datos del formulario
+                const formData = new FormData(form);
+                const userData = {
+                    nombre: formData.get('nombre'),
+                    email: formData.get('email'),
+                    telefono: formData.get('telefono'),
+                    contrasena: formData.get('contrasena')
+                };
+                
+                try {
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Creando cuenta...';
+                    
+                    const result = await signUp(userData.email, userData.contrasena, userData.nombre, userData.telefono);
+                    
+                    if (result.success) {
+                        alert('Cuenta creada exitosamente. Por favor, verifica tu email.');
+                        window.location.href = 'InicioSesion.html';
+                    } else {
+                        alert('Error al crear cuenta: ' + result.error);
+                    }
+                } catch (error) {
+                    console.error('Error en registro:', error);
+                    alert('Error inesperado durante el registro.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Crear cuenta';
+                }
+            });
+        });
+
+        // Modal functions
+        let currentModalType = '';
+
+        window.openPrivacyModal = function() {
+            currentModalType = 'privacy';
+            const modal = document.getElementById('legalModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+            
+            title.textContent = 'Política de Privacidad';
+            content.innerHTML = `
+                <div class="legal-content">
+                    <h3>Información que recopilamos</h3>
+                    <ul>
+                        <li><strong>Datos personales:</strong> Nombre, apellidos, email, teléfono y dirección</li>
+                        <li><strong>Datos de cuenta:</strong> Contraseña y preferencias de configuración</li>
+                        <li><strong>Datos de uso:</strong> Información sobre cómo interactúas con nuestros servicios</li>
+                        <li><strong>Datos técnicos:</strong> Dirección IP, tipo de navegador y dispositivo</li>
+                    </ul>
+                    
+                    <h3>Cómo utilizamos tus datos</h3>
+                    <ul>
+                        <li>Proporcionar nuestros servicios y atención al cliente</li>
+                        <li>Procesar tus solicitudes y reservas de vehículos</li>
+                        <li>Mejorar nuestros servicios y experiencia de usuario</li>
+                        <li>Enviarte información relevante sobre nuestros productos</li>
+                        <li>Cumplir con obligaciones legales y regulatorias</li>
+                    </ul>
+                    
+                    <h3>Protección de datos</h3>
+                    <ul>
+                        <li>Encriptación de datos sensibles</li>
+                        <li>Acceso restringido a la información personal</li>
+                        <li>Actualizaciones regulares de seguridad</li>
+                        <li>Cumplimiento con RGPD y normativa europea</li>
+                    </ul>
+                    
+                    <h3>Tus derechos</h3>
+                    <ul>
+                        <li>Acceder a tus datos personales</li>
+                        <li>Rectificar información incorrecta</li>
+                        <li>Suprimir tus datos personales</li>
+                        <li>Limitar el tratamiento de tus datos</li>
+                        <li>Portabilidad de tus datos</li>
+                        <li>Oponerte al tratamiento de tus datos</li>
+                    </ul>
+                    
+                    <h3>Cookies</h3>
+                    <ul>
+                        <li><strong>Cookies esenciales:</strong> Necesarias para el funcionamiento del sitio</li>
+                        <li><strong>Cookies de rendimiento:</strong> Analizan el uso del sitio</li>
+                        <li><strong>Cookies de funcionalidad:</strong> Recuerdan tus preferencias</li>
+                        <li><strong>Cookies de marketing:</strong> Para publicidad personalizada</li>
+                    </ul>
+                    
+                    <h3>Contacto para privacidad</h3>
+                    <ul>
+                        <li><strong>Email:</strong> privacidad@nyuramotors.com</li>
+                        <li><strong>Teléfono:</strong> +34 612 345 678</li>
+                        <li><strong>Dirección:</strong> Carrer de Caracas, 11. Sant Andreu, 08030 Barcelona</li>
+                    </ul>
+                    
+                    <p><strong>Última actualización:</strong> 15 de abril de 2026</p>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+        };
+
+        window.openTermsModal = function() {
+            currentModalType = 'terms';
+            const modal = document.getElementById('legalModal');
+            const title = document.getElementById('modalTitle');
+            const content = document.getElementById('modalContent');
+            
+            title.textContent = 'Condiciones de Uso';
+            content.innerHTML = `
+                <div class="legal-content">
+                    <h3>Aceptación de términos</h3>
+                    <p>Al acceder y utilizar los servicios de Nyura Motors, aceptas cumplir con estas condiciones de uso. Si no estás de acuerdo con alguno de estos términos, no debes utilizar nuestros servicios.</p>
+                    
+                    <h3>Descripción del servicio</h3>
+                    <ul>
+                        <li>Información sobre vehículos eléctricos</li>
+                        <li>Sistema de reservas y pruebas de manejo</li>
+                        <li>Atención al cliente y soporte técnico</li>
+                        <li>Comunidad de usuarios y recursos educativos</li>
+                    </ul>
+                    
+                    <h3>Responsabilidades del usuario</h3>
+                    <ul>
+                        <li>Proporcionar información veraz y actualizada</li>
+                        <li>Mantener la confidencialidad de tu contraseña</li>
+                        <li>No utilizar el servicio para fines ilegales</li>
+                        <li>Respetar los derechos de otros usuarios</li>
+                        <li>No realizar actividades fraudulentas o maliciosas</li>
+                    </ul>
+                    
+                    <h3>Propiedad intelectual</h3>
+                    <ul>
+                        <li>Diseños, logos y marcas comerciales</li>
+                        <li>Contenido textual y multimedia</li>
+                        <li>Código fuente y tecnología</li>
+                        <li>Diseños de vehículos y configuraciones</li>
+                    </ul>
+                    <p>Está prohibida la reproducción, distribución o modificación sin autorización expresa.</p>
+                    
+                    <h3>Precios y pagos</h3>
+                    <ul>
+                        <li>Los precios mostrados incluyen IVA</li>
+                        <li>Los precios están sujetos a cambios sin previo aviso</li>
+                        <li>Los pagos se procesan a través de plataformas seguras</li>
+                        <li>Las reservas requieren un depósito confirmado</li>
+                        <li>Los reembolsos siguen nuestra política de cancelación</li>
+                    </ul>
+                    
+                    <h3>Cancelación y reembolsos</h3>
+                    <ul>
+                        <li><strong>Pruebas de manejo:</strong> Cancelación gratuita hasta 24h antes</li>
+                        <li><strong>Reservas de vehículos:</strong> Penalización según tiempo de antelación</li>
+                        <li><strong>Configuraciones personalizadas:</strong> No reembolsables tras confirmación</li>
+                        <li><strong>Servicios adicionales:</strong> Condiciones específicas por servicio</li>
+                    </ul>
+                    
+                    <h3>Ley aplicable</h3>
+                    <p>Estas condiciones se rigen por la legislación española y europea. Cualquier disputa se resolverá según los tribunales de Barcelona, España.</p>
+                    
+                    <p><strong>Última actualización:</strong> 15 de abril de 2026</p>
+                </div>
+            `;
+            
+            modal.style.display = 'flex';
+        };
+
+        window.closeModal = function() {
+            const modal = document.getElementById('legalModal');
+            modal.style.display = 'none';
+        };
+
+        window.acceptTerms = function() {
+            const termsCheckbox = document.getElementById('termsCheckbox');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            // Marcar el checkbox
+            termsCheckbox.checked = true;
+            
+            // Habilitar el botón de envío
+            submitBtn.disabled = false;
+            
+            // Cerrar el modal
+            closeModal();
+        };
+
+        // Cerrar modal al hacer clic fuera del contenido
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('legalModal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
